@@ -38,8 +38,9 @@ ifeq ($(single_thread),yes)
 	EM_CXXFLAGS += -DWASM_SINGLE_THREAD
 	EM_LDFLAGS += -s STACK_SIZE=$$((8 << 20))
 else
+	EM_CXXFLAGS += -pthread
 	EM_LDFLAGS += \
-		-s USE_PTHREADS=1 \
+		-pthread \
 		-s PROXY_TO_PTHREAD=1
 endif
 
