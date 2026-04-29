@@ -128,6 +128,47 @@ Then open the local URL for `test-single.html` and use the buttons to:
 - commands are forwarded with `postMessage`
 - engine output is posted back to the main thread
 
+## Benchmark baseline
+
+The numbers below were measured locally on April 29, 2026 from the browser path used during development:
+
+- threaded wasm: `test-puppeteer.html` plus `public/uci-puppeteer.js`
+- single-thread wasm: `test-single.html` plus `public/engine-worker.js`
+- emsdk: `5.0.6`
+
+Measured commands:
+
+```txt
+threaded:
+bench 16 1 5 default depth NNUE
+
+single-thread:
+bench 16 1 5 default depth NNUE
+bench
+```
+
+Benchmark summary:
+
+| Build | Browser requirements | Command | Total time (ms) | Nodes searched | Nodes/second |
+| --- | --- | --- | ---: | ---: | ---: |
+| threaded wasm | `COOP/COEP`, `SharedArrayBuffer` | `bench 16 1 5 default depth NNUE` | 314 | 12341 | 39302 |
+| single-thread wasm | plain worker only | `bench 16 1 5 default depth NNUE` | 326 | 31655 | 97101 |
+| single-thread wasm | plain worker only | `bench` | 20053 | 4579058 | 228347 |
+
+Additional quick smoke comparisons gathered during debugging:
+
+| Build | Command | Total time (ms) | Nodes searched | Nodes/second |
+| --- | --- | ---: | ---: | ---: |
+| threaded wasm | `bench 16 1 8 current depth NNUE` | 25 | 506 | 20240 |
+| single-thread wasm | `bench 16 1 8 current depth NNUE` | 31 | 5172 | 166838 |
+| single-thread wasm | `node public/uci.js bench` | 12861 | 4579058 | 356042 |
+
+Notes:
+
+- These numbers are a baseline for this branch, not a cross-machine performance target.
+- The threaded browser path became functional again on Emscripten 5, but it is still slower than the single-thread worker path in these measurements.
+- If you re-run benchmarks later, record the exact command, browser path, and emsdk version next to the updated table.
+
 ## Stop strategy and limitations
 
 The single-thread build does not have helper pthreads listening for commands during a synchronous search. Because of that:
