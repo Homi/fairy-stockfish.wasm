@@ -20,8 +20,10 @@
 #define THREAD_H_INCLUDED
 
 #include <atomic>
+#ifndef WASM_SINGLE_THREAD
 #include <condition_variable>
 #include <mutex>
+#endif
 #include <thread>
 #include <vector>
 
@@ -41,11 +43,21 @@ namespace Stockfish {
 
 class Thread {
 
+#ifndef WASM_SINGLE_THREAD
   std::mutex mutex;
   std::condition_variable cv;
+#endif
   size_t idx;
-  bool exit = false, searching = true; // Set before starting std::thread
+  bool exit = false;
+  bool searching =
+#ifdef WASM_SINGLE_THREAD
+      false;
+#else
+      true; // Set before starting std::thread
+#endif
+#ifndef WASM_SINGLE_THREAD
   NativeThread stdThread;
+#endif
 
 public:
   explicit Thread(size_t);

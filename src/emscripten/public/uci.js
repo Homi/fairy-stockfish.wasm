@@ -1,7 +1,11 @@
 const process = require("process");
 const fs = require("fs");
+const path = require("path");
 const readline = require("readline");
-const Stockfish = require("./stockfish.js");
+const modulePath = fs.existsSync(path.join(__dirname, "stockfish-single.js"))
+  ? "./stockfish-single.js"
+  : "./stockfish.js";
+const Stockfish = require(modulePath);
 
 const UCI_NNUE_FILE = process.env.UCI_NNUE_FILE;
 

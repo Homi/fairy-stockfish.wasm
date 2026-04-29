@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fairy-Stockfish Single-Thread Worker Test</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        --bg: linear-gradient(135deg, #f4efe6, #d9e6f2);
+        --panel: rgba(255, 255, 255, 0.88);
+        --ink: #1c2a3a;
+        --accent: #0f766e;
+        --accent-2: #b45309;
+        --border: rgba(28, 42, 58, 0.12);
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--ink);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      main {
+        width: min(920px, 100%);
+        background: var(--panel);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(28, 42, 58, 0.15);
+        padding: 24px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(28px, 4vw, 42px);
+      }
+
+      p {
+        margin: 0 0 20px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 16px;
+        font: inherit;
+        color: white;
+        background: var(--accent);
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: var(--accent-2);
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        padding: 12px;
+        font: 14px/1.5 "IBM Plex Mono", "SFMono-Regular", monospace;
+        resize: vertical;
+        box-sizing: border-box;
+      }
+
+      pre {
+        min-height: 320px;
+        margin: 16px 0 0;
+        padding: 16px;
+        border-radius: 14px;
+        background: #122033;
+        color: #ecf4ff;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Single-Thread Fairy-Stockfish</h1>
+      <p>Runs the single-thread wasm build inside one plain Web Worker.</p>
+
+      <div class="actions">
+        <button id="init">Init</button>
+        <button id="uci">UCI</button>
+        <button id="ready">isready</button>
+        <button id="go">go movetime 500</button>
+        <button id="restart" class="secondary">Restart worker</button>
+      </div>
+
+      <textarea id="commands">position startpos
+go movetime 500</textarea>
+      <div class="actions">
+        <button id="send">Send textarea commands</button>
+      </div>
+
+      <pre id="log"></pre>
+    </main>
+
+    <script>
+      const log = document.getElementById("log");
+      const commands = document.getElementById("commands");
+      let worker = null;
+
+      function append(line) {
+        log.textContent += `${line}\n`;
+        log.scrollTop = log.scrollHeight;
+      }
+
+      function createWorker() {
+        if (worker) {
+          worker.terminate();
+        }
+
+        worker = new Worker("./engine-worker.js");
+        worker.onmessage = (event) => {
+          if (event.data.type === "ready") {
+            append("[worker ready]");
+            return;
+          }
+          if (event.data.type === "line") {
+            append(event.data.line);
+          }
+        };
+      }
+
+      function send(command) {
+        if (!worker) {
+          createWorker();
+        }
+        append(`> ${command}`);
+        worker.postMessage(command);
+      }
+
+      createWorker();
+
+      document.getElementById("init").onclick = () => worker.postMessage({ type: "init" });
+      document.getElementById("uci").onclick = () => send("uci");
+      document.getElementById("ready").onclick = () => send("isready");
+      document.getElementById("go").onclick = () => {
+        send("position startpos");
+        send("go movetime 500");
+      };
+      document.getElementById("restart").onclick = () => {
+        append("[restarting worker]");
+        createWorker();
+        worker.postMessage({ type: "init" });
+      };
+      document.getElementById("send").onclick = () => {
+        for (const line of commands.value.split("\n")) {
+          if (line.trim()) {
+            send(line.trim());
+          }
+        }
+      };
+    </script>
+  </body>
+</html>

@@ -500,6 +500,7 @@ endif
 
 ### On mingw use Windows threads, otherwise POSIX
 ifneq ($(comp),mingw)
+ifneq ($(single_thread),yes)
 	CXXFLAGS += -DUSE_PTHREADS
 	# On Android Bionic's C library comes with its own pthread implementation bundled in
 	ifneq ($(OS),Android)
@@ -510,6 +511,7 @@ ifneq ($(comp),mingw)
 			endif
 		endif
 	endif
+endif
 endif
 
 ### 3.2.1 Debugging
@@ -543,9 +545,11 @@ ifeq ($(optimize),yes)
 	endif
 
 	ifeq ($(comp),clang)
+		ifneq ($(ARCH),wasm)
 		clangmajorversion = $(shell $(CXX) -dumpversion 2>/dev/null | cut -f1 -d.)
 		ifeq ($(shell expr $(clangmajorversion) \< 16),1)
 			CXXFLAGS += -fexperimental-new-pass-manager
+		endif
 		endif
 	endif
 endif

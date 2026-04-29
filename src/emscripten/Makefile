@@ -1,4 +1,10 @@
+single_thread ?= no
+
+ifeq ($(single_thread),yes)
+EXE = stockfish-single.js
+else
 EXE = stockfish.js
+endif
 COMP = em++
 CXX = em++
 comp = clang
@@ -12,17 +18,30 @@ minify_js = yes
 assertion = no
 
 VPATH := $(VPATH):emscripten
+ifeq ($(single_thread),yes)
+PRE_JS = emscripten/preamble-single.js
+else
+PRE_JS = emscripten/preamble.js
+endif
+
 EM_CXXFLAGS +=
 EM_LDFLAGS += \
-	--pre-js emscripten/preamble.js \
+	--pre-js $(PRE_JS) \
 	-s MODULARIZE=1 -s EXPORT_NAME="Stockfish" -s ENVIRONMENT=web,worker,node \
 	-s STRICT=1 \
 	-s ASYNCIFY=1 -s 'ASYNCIFY_IMPORTS=["emscripten_utils_getline_impl"]' \
-	-s USE_PTHREADS=1 \
-	-s PROXY_TO_PTHREAD=1 \
 	-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=$$((1 << 27)) -s MAXIMUM_MEMORY=$$((1 << 31)) \
-	-s FILESYSTEM=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=["FS"] \
+	-s FILESYSTEM=1 -s EXPORTED_RUNTIME_METHODS=["FS"] \
 	-s ALLOW_UNIMPLEMENTED_SYSCALLS
+
+ifeq ($(single_thread),yes)
+	EM_CXXFLAGS += -DWASM_SINGLE_THREAD
+	EM_LDFLAGS += -s STACK_SIZE=$$((8 << 20))
+else
+	EM_LDFLAGS += \
+		-s USE_PTHREADS=1 \
+		-s PROXY_TO_PTHREAD=1
+endif
 
 ifeq ($(minify_js),yes)
 	EM_LDFLAGS += --closure 1
@@ -48,7 +67,7 @@ else
 endif
 
 EM_COMMIT = $(shell git rev-parse --short HEAD)
-EM_UPSTREAM = $(shell git rev-parse --short $$(git merge-base HEAD upstream/master))
+EM_UPSTREAM = $(shell if git rev-parse --verify upstream/master >/dev/null 2>&1; then git rev-parse --short $$(git merge-base HEAD upstream/master); else printf unknown; fi)
 EM_EMSCRIPTEN = $(shell emsdk list | grep INSTALLED | head -n 1 | awk '{ print $$1 }')
 
 EXTRACXXFLAGS += \
@@ -59,10 +78,17 @@ EXTRACXXFLAGS += \
 EXTRALDFLAGS += $(EM_LDFLAGS)
 
 EM_ARTIFACTS += \
-	stockfish.js stockfish.wasm stockfish.worker.js \
+	$(EXE) $(basename $(EXE)).wasm \
 	emscripten/embedded_nnue.cpp \
-	emscripten/public/stockfish.js emscripten/public/stockfish.wasm emscripten/public/stockfish.worker.js \
+	emscripten/public/$(EXE) emscripten/public/$(basename $(EXE)).wasm \
 	emscripten/public/AUTHORS emscripten/public/Copying.txt
+
+ifeq ($(single_thread),yes)
+else
+EM_ARTIFACTS += \
+	stockfish.worker.js \
+	emscripten/public/stockfish.worker.js
+endif
 
 ifeq ($(embedded_nnue),yes)
 emscripten/embedded_nnue.cpp: net
@@ -71,8 +97,11 @@ emscripten/embedded_nnue.cpp: net
 endif
 
 emscripten_copy_files:
-	cp -f ../AUTHORS ../Copying.txt stockfish.js stockfish.wasm emscripten/public
+	cp -f ../AUTHORS ../Copying.txt $(EXE) $(basename $(EXE)).wasm emscripten/public
+ifeq ($(single_thread),yes)
+else
 	cat stockfish.worker.js emscripten/worker-postamble.js > emscripten/public/stockfish.worker.js
+endif
 
 emscripten_build: build emscripten_copy_files
 

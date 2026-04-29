@@ -1,22 +1,4 @@
 //
-// Post custom message to all workers (including main worker)
-//
-Module["postCustomMessage"] = (data) => {
-  if (typeof PThread === "object" && Array.isArray(PThread.runningWorkers)) {
-    // TODO: Actually want to post only to main worker
-    for (let worker of PThread.runningWorkers) {
-      // prettier-ignore
-      worker.postMessage({ "cmd": "custom", "userData": data });
-    }
-    return;
-  }
-
-  if (typeof Module["onCustomMessage"] === "function") {
-    Module["onCustomMessage"](data);
-  }
-};
-
-//
 // Simple queue with async get (assume single consumer)
 //
 class Queue {
@@ -40,21 +22,11 @@ class Queue {
   }
 }
 
-//
-// TODO: This is used only by main worker
-//
 Module["queue"] = new Queue();
 
-Module["onCustomMessage"] = (data) => {
+Module["postMessage"] = (data) => {
   Module["queue"].put(data);
 };
-
-//
-// API
-//
-
-// Align to the same API as niklasf's stockfish
-Module["postMessage"] = Module["postCustomMessage"];
 
 const listeners = [];
 
@@ -79,8 +51,4 @@ Module["print"] = Module["printErr"] = (data) => {
   }
 };
 
-Module["terminate"] = () => {
-  if (typeof PThread === "object" && typeof PThread.terminateAllThreads === "function") {
-    PThread.terminateAllThreads();
-  }
-};
+Module["terminate"] = () => {};
