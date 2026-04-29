@@ -4,9 +4,10 @@
 const oldOnmessage = self.onmessage;
 
 self.onmessage = (e) => {
-  if (e.data.cmd === "custom") {
+  const messageData = e?.["data"];
+  if (messageData?.["cmd"] === "custom") {
     if (typeof Module["onCustomMessage"] === "function") {
-      Module["onCustomMessage"](e.data.userData);
+      Module["onCustomMessage"](messageData["userData"]);
     }
   } else {
     oldOnmessage(e);

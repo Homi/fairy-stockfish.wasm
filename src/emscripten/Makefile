@@ -101,7 +101,11 @@ emscripten_copy_files:
 	cp -f ../AUTHORS ../Copying.txt $(EXE) $(basename $(EXE)).wasm emscripten/public
 ifeq ($(single_thread),yes)
 else
-	cat stockfish.worker.js emscripten/worker-postamble.js > emscripten/public/stockfish.worker.js
+	@if test -f stockfish.worker.js; then \
+		cat stockfish.worker.js emscripten/worker-postamble.js > emscripten/public/stockfish.worker.js; \
+	else \
+		cp -f emscripten/worker-postamble.js emscripten/public/stockfish.worker.js; \
+	fi
 endif
 
 emscripten_build: build emscripten_copy_files
